@@ -5,13 +5,16 @@ from reader import data_loader
 from figure_utils import draw_figure
 from vggnet import VGG
 
+NUM_EPOCH = 30
+BATCH_SIZE = 20
+
 
 def train(model, train_dir, valid_dir):
     with fluid.dygraph.guard():
         print('start training ... ')
         begin = datetime.datetime.now()
         model.train()
-        epoch_num = 10
+        epoch_num = NUM_EPOCH
         all_acc = []
         all_val_acc = []
         all_loss = []
@@ -19,8 +22,8 @@ def train(model, train_dir, valid_dir):
         # 定义优化器
         opt = fluid.optimizer.Momentum(learning_rate=0.001, momentum=0.9)
         # 定义数据读取器，训练数据读取器和验证数据读取器
-        train_loader = data_loader(train_dir, batch_size=10, mode='train')
-        valid_loader = data_loader(valid_dir, batch_size=10, mode='valid')
+        train_loader = data_loader(train_dir, batch_size=BATCH_SIZE, mode='train')
+        valid_loader = data_loader(valid_dir, batch_size=BATCH_SIZE, mode='valid')
         for epoch in range(epoch_num):
             accuracies = []
             losses = []
@@ -29,11 +32,14 @@ def train(model, train_dir, valid_dir):
                 img = fluid.dygraph.to_variable(x_data)
                 label = fluid.dygraph.to_variable(y_data)
                 logits = model(img)
+                # 二分类问题，计算精度
                 pred = fluid.layers.sigmoid(logits)
+                pred2 = pred * (-1.0) + 1.0
+                pred = fluid.layers.concat([pred2, pred], axis=1)
                 acc = fluid.layers.accuracy(pred, fluid.layers.cast(label, dtype='int64'))
                 loss = fluid.layers.sigmoid_cross_entropy_with_logits(logits, label)
                 avg_loss = fluid.layers.mean(loss)
-                if batch_id % 100 == 0:
+                if batch_id % 200 == 0:
                     print("epoch: {}, batch_id: {}, loss is: {}".format(epoch, batch_id, avg_loss.numpy()))
                 # 反向传播，更新权重，清除梯度
                 avg_loss.backward()
@@ -47,7 +53,7 @@ def train(model, train_dir, valid_dir):
 
             # 每5轮过后保存模型参数
             if (epoch % 5 == 0) or (epoch == epoch_num - 1):
-                fluid.save_dygraph(model.state_dict(), 'cat_and_dog{}'.format(epoch))
+                fluid.save_dygraph(model.state_dict(), 'dogs_vs_cats_{}'.format(epoch))
 
             model.eval()
             accuracies = []
@@ -58,6 +64,8 @@ def train(model, train_dir, valid_dir):
                 label = fluid.dygraph.to_variable(y_data)
                 logits = model(img)
                 pred = fluid.layers.sigmoid(logits)
+                pred2 = pred * (-1.0) + 1.0
+                pred = fluid.layers.concat([pred2, pred], axis=1)
                 acc = fluid.layers.accuracy(pred, fluid.layers.cast(label, dtype='int64'))
                 loss = fluid.layers.sigmoid_cross_entropy_with_logits(logits, label)
                 accuracies.append(acc.numpy())
@@ -84,8 +92,8 @@ def train(model, train_dir, valid_dir):
 
 
 if __name__ == '__main__':
-    train_dir = 'data/train'
-    valid_dir = 'data/valid'
+    train_dir = 'dogs-vs-cats-redux-kernels-edition/train'
+    valid_dir = 'dogs-vs-cats-redux-kernels-edition/valid'
     with fluid.dygraph.guard():
         model = VGG('vgg')
     train(model, train_dir, valid_dir)
