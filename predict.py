@@ -1,7 +1,29 @@
 import cv2
 import paddle.fluid as fluid
+import argparse
 from image_utils import transform_img
 from vggnet import VGG
+
+
+def parse_args():
+    parser = argparse.ArgumentParser("Prediction Parameters")
+    parser.add_argument(
+        '--weight_file',
+        type=str,
+        default='dogs_vs_cats_10',
+        help='the path of model parameters')
+    parser.add_argument(
+        '--test_picture',
+        type=str,
+        default='dogs-vs-cats-redux-kernels-edition/test/9032.jpg',
+        help='the test picture')
+    args = parser.parse_args()
+    return args
+
+
+args = parse_args()
+WEIGHT_FILE = args.weight_file
+TEST_PICTURE = args.test_picture
 
 
 # 定义预测方法
@@ -24,11 +46,8 @@ def pred(model, params_file_path, test_picture):
 
 
 if __name__ == '__main__':
-    param_file_path = 'dogs_vs_cats_9'
-    # test_picture = 'dogs-vs-cats-redux-kernels-edition/test/9026.jpg'
-    # test_picture = 'D:\\temp\\dog1.jpg'
-    # test_picture = 'D:\\temp\\cat1.jpg'
-    test_picture = 'D:\\temp\\charley.png'
+    param_file_path = WEIGHT_FILE
+    test_picture = TEST_PICTURE
     with fluid.dygraph.guard():
         model = VGG('vgg')
     pred(model, param_file_path, test_picture)
